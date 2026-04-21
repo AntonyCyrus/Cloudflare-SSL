@@ -366,4 +366,108 @@ certbot renew
 - 后续优先使用 certbot renew
 - 通过 deploy hook 在续期成功后重载服务
 
+
+### 卸载与还原说明
+
+根据需求不同，可以选择以下三种方式：
+
+---
+
+### 一、仅停止使用（推荐）
+
+适用于：不再使用证书，但保留环境
+
+```bash
+sudo systemctl stop certbot.timer
+sudo systemctl disable certbot.timer
+```
+
+如果配置过自动重载脚本：
+
+```bash
+sudo rm -rf /etc/letsencrypt/renewal-hooks/
+```
+
+同时请修改服务配置（如 Nginx），移除证书路径引用：
+
+```bash
+/etc/letsencrypt/live/example.com/fullchain.pem
+/etc/letsencrypt/live/example.com/privkey.pem
+```
+
+---
+
+### 二、删除证书（保留 Certbot）
+
+适用于：清空证书，重新申请
+
+查看已有证书：
+
+```bash
+sudo certbot certificates
+```
+
+删除指定证书：
+
+```bash
+sudo certbot delete --cert-name example.com
+```
+
+删除 Cloudflare API 凭据（建议）：
+
+```bash
+sudo rm -f /etc/letsencrypt/cloudflare.ini
+```
+
+---
+
+### 三、完全卸载（彻底还原）
+
+适用于：恢复为未安装状态
+
+卸载软件：
+
+```bash
+sudo apt remove --purge -y certbot python3-certbot-dns-cloudflare
+sudo apt autoremove -y
+```
+
+删除所有数据：
+
+```bash
+sudo rm -rf /etc/letsencrypt
+sudo rm -rf /var/lib/letsencrypt
+sudo rm -rf /var/log/letsencrypt
+```
+
+删除定时任务：
+
+```bash
+sudo rm -f /etc/cron.d/certbot
+sudo systemctl daemon-reexec
+```
+
+检查是否清理完成：
+
+```bash
+systemctl list-timers | grep certbot
+```
+
+无输出则说明已清理干净
+
+---
+
+### 补充说明
+
+- DNS 验证产生的 _acme-challenge TXT 记录通常会自动删除
+- 如 Cloudflare 中仍存在，可手动删除（非必须）
+
+---
+
+### 总结
+
+- 停用：关闭 timer + 修改服务配置
+- 重置：删除证书
+- 彻底：卸载 + 删除目录
+
 这样可以避免重复申请后出现 -0001`、`-0002 导致的证书路径变化问题。
